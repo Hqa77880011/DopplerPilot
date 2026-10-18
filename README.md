@@ -2,47 +2,44 @@
 
 Implementation of **Risk-aware pilot/data co-design for finite-blocklength grant-free URLLC under uncertain aging.**
 
-## Install
+## Installation
 
-Use Python 3.11 in an isolated environment, then run from the repository root:
+Use Python 3.10+. Create and activate a virtual environment before installing:
 
 ```bash
+python -m venv .venv
+source .venv/bin/activate
 python -m pip install -e .
 ```
 
-## Data
+In PowerShell, replace the activation line with `.venv\Scripts\Activate.ps1`.
+
+## Data and preprocessing
 
 `prepare` samples Doppler-dependent correlations and random active load for offline policy design. `run` draws independent evaluation scenarios. All actions share blocklength, packet energy, peak powers and the feasible pilot grid. This is a link-surrogate simulation: conditional BLER comes from the finite-blocklength normal approximation.
 
-## Workflow
-
 ```bash
-python -m dopplerpilot prepare
-python -m dopplerpilot fit
-python -m dopplerpilot run
-python -m dopplerpilot evaluate
-python -m dopplerpilot plot
+python -m dopplerpilot prepare --config config.json --output runs/default
 ```
 
-Main commands accept `--config config.json` and `--output runs/default`. Keep each seed/condition in its own output directory. The resolved configuration is written to `settings.json`.
+## Training and inference
 
-## Configuration
+```bash
+python -m dopplerpilot fit --config config.json --output runs/default
+python -m dopplerpilot run --config config.json --output runs/default
+```
 
-`blocklength,bits,energy` define the packet budget. `pilots,fractions,fraction_points,pilot_peak,data_peak` define feasible complete allocations. `carrier_hz,separation_seconds,speed_std,speeds,loads` define uncertainty. `risk_weight,alpha` specify mean plus upper-tail CVaR. `reliability_threshold` fixes violation accounting. Training epochs, batch size, learning rate and seed use the defaults shown in `config.json` where applicable.
+## Evaluation
+
+```bash
+python -m dopplerpilot evaluate --config config.json --output runs/default
+python -m dopplerpilot plot --config config.json --output runs/default
+```
 
 ## Outputs
 
-`design.npz` contains optimization scenarios. `policy.csv` stores offline-selected pilot/power actions. `packets.csv` contains held-out surrogate errors, goodput and oracle agreement. `metrics.csv` reports mean BLER, CVaR BLER, violation probability, goodput, decision accuracy and lookup time. `bler.png` shows the mean-error curve.
+`design.npz` holds optimization scenarios; `policy.csv` holds selected pilot/power actions; `packets.csv`, `metrics.csv` and `bler.png` contain held-out link-surrogate results.
 
-## Implementation and controls
+Keep `config.json` with the run; it contains model/data settings and the seed where the CLI does not expose one. Use separate output directories for different seeds/conditions.
 
-Exact enumeration minimizes the empirical criterion on the finite feasible grid. Pilot length changes estimation quality, remaining data length and data power together. CVaR integrates the correct fractional tail mass. The table is used online; timing includes the implemented pandas state lookup. Goodput uses payload bits per total packet channel use. The per-realization oracle is an evaluation diagnostic.
-
-Controls: `DopplerPilot`, `mean-only`, `aging-blind`, `fixed`. The run command evaluates the listed controls together.
-
-```bash
-python -m dopplerpilot.compare --inputs "runs/*/metrics.csv" --reference DopplerPilot --metrics mean_bler cvar_bler violation goodput --unit seed
-```
-
-The comparison command averages repeated rows within the specified independent unit, bootstraps units and applies paired Wilcoxon/Holm comparisons per metric.
-
+Source inspection: Python 3.13.5, numpy 2.1.3, scipy 1.15.3, pandas 2.2.3, matplotlib 3.10.0 (installed versions inspected). Checks covered Python syntax, configuration parsing and CLI arguments. No training, full evaluation or CI was run in this update.
